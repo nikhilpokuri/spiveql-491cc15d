@@ -36,11 +36,11 @@ const LabsSection = () => (
         {/* Fake terminal lines */}
         <div className="rounded-lg bg-background/50 border border-border p-4 font-mono text-xs text-muted-foreground space-y-1 mb-8">
           <p><span className="text-primary">$</span> spiveql init --project bbs</p>
-          <p className="text-green-500">✓ Environment ready</p>
+          <p className="text-primary">✓ Environment ready</p>
           <p><span className="text-primary">$</span> spiveql run pipeline --incremental</p>
-          <p className="text-green-500">✓ Pipeline executed — 12,483 rows processed</p>
+          <p className="text-primary">✓ Pipeline executed — 12,483 rows processed</p>
           <p><span className="text-primary">$</span> spiveql test --all</p>
-          <p className="text-green-500">✓ All 24 tests passed</p>
+          <p className="text-primary">✓ All 24 tests passed</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
