@@ -64,7 +64,7 @@ const ProjectsPage = () => {
             {projects.map((p) => (
               <div
                 key={p.id}
-                className={`glass rounded-xl p-6 flex flex-col ${p.has_access ? "hover:shadow-glow" : "opacity-60"} transition-shadow`}
+                className={`glass rounded-xl p-6 flex flex-col ${p.is_active && p.has_access ? "hover:shadow-glow" : "opacity-60"} transition-shadow`}
               >
                 {!p.has_access && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
@@ -85,7 +85,7 @@ const ProjectsPage = () => {
                     </span>
                     <span className="text-muted-foreground">{p.duration}</span>
                   </div>
-                  {p.has_access && (
+                  {p.is_active && p.has_access && (
                     <div className="flex items-center gap-2">
                       {p.total_tasks > 0 && (
                         <span className="text-xs text-muted-foreground">

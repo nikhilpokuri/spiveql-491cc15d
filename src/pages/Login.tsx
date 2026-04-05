@@ -12,6 +12,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -19,14 +20,28 @@ const LoginPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       const res = isSignup
         ? await authApi.register(name, email, password)
         : await authApi.login(email, password);
+
+      // ✅ STORE IN LOCALSTORAGE (FIX)
+      localStorage.setItem("spiveql_token", res.token);
+      localStorage.setItem("spiveql_user", JSON.stringify(res.user));
+
+      // ✅ existing auth context
       login(res.token, res.user);
+
+      // ✅ redirect
       navigate(res.user.role === "ADMIN" ? "/admin" : "/dashboard");
+
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -36,14 +51,19 @@ const LoginPage = () => {
     <div className="dark min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm glass rounded-2xl p-8">
         <Link to="/" className="text-xl font-bold text-gradient">Spiveql</Link>
+
         <h1 className="text-2xl font-bold text-foreground mt-6">
           {isSignup ? "Create account" : "Welcome back"}
         </h1>
+
         <p className="text-sm text-muted-foreground mt-1">
-          {isSignup ? "Start your data engineering journey" : "Sign in to your account"}
+          {isSignup
+            ? "Start your data engineering journey"
+            : "Sign in to your account"}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+
           {isSignup && (
             <div>
               <label className="text-sm font-medium text-foreground">Name</label>
@@ -57,6 +77,7 @@ const LoginPage = () => {
               />
             </div>
           )}
+
           <div>
             <label className="text-sm font-medium text-foreground">Email</label>
             <input
@@ -68,6 +89,7 @@ const LoginPage = () => {
               className="mt-1 w-full h-10 px-3 rounded-md bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+
           <div>
             <label className="text-sm font-medium text-foreground">Password</label>
             <input
@@ -80,6 +102,7 @@ const LoginPage = () => {
               className="mt-1 w-full h-10 px-3 rounded-md bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+
           <Button variant="hero" className="w-full" disabled={loading}>
             {loading && <Loader2 className="animate-spin" size={16} />}
             {isSignup ? "Sign Up" : "Sign In"}
@@ -87,7 +110,9 @@ const LoginPage = () => {
         </form>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+          {isSignup
+            ? "Already have an account?"
+            : "Don't have an account?"}{" "}
           <button
             onClick={() => setIsSignup(!isSignup)}
             className="text-primary hover:underline"
@@ -96,7 +121,10 @@ const LoginPage = () => {
           </button>
         </p>
 
-        <Link to="/" className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <Link
+          to="/"
+          className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft size={12} /> Back to home
         </Link>
       </div>

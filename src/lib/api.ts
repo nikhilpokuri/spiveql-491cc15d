@@ -20,7 +20,13 @@ export async function api<T = unknown>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  // if (token) headers["Authorization"] = `Bearer ${token}`;
+  const storedToken = localStorage.getItem("spiveql_token");
+  const finalToken = token || storedToken;
+
+  if (finalToken) {
+    headers["Authorization"] = `Bearer ${finalToken}`;
+  }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method,
@@ -125,6 +131,7 @@ export interface ProjectWithAccess {
   duration: string;
   tags: string[];
   has_access: boolean;
+  is_active: boolean;
   total_tasks: number;
   completed_tasks: number;
 }
