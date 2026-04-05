@@ -1,16 +1,29 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import Navbar from "@/components/Navbar";
+import HeroSection from "@/components/sections/HeroSection";
+import ProblemSection from "@/components/sections/ProblemSection";
+import SolutionSection from "@/components/sections/SolutionSection";
+import ProductsSection from "@/components/sections/ProductsSection";
+import LabsSection from "@/components/sections/LabsSection";
+import HowItWorksSection from "@/components/sections/HowItWorksSection";
+import PricingSection from "@/components/sections/PricingSection";
+import TestimonialsSection from "@/components/sections/TestimonialsSection";
+import FinalCTASection from "@/components/sections/FinalCTASection";
+import Footer from "@/components/Footer";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
-  return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
-    </div>
-  );
-};
-
-const Index = PlaceholderIndex;
+const Index = () => (
+  <div className="dark">
+    <Navbar />
+    <HeroSection />
+    <ProblemSection />
+    <SolutionSection />
+    <ProductsSection />
+    <LabsSection />
+    <HowItWorksSection />
+    <PricingSection />
+    <TestimonialsSection />
+    <FinalCTASection />
+    <Footer />
+  </div>
+);
 
 export default Index;
