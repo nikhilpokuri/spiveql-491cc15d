@@ -1,9 +1,7 @@
 // ============================================
-// Spiveql API Client
+// Spiveql API Client v2
 // ============================================
 
-// Change this to your cPanel backend URL in production
-// e.g., "https://yourdomain.com/api"
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 interface ApiOptions {
@@ -20,7 +18,6 @@ export async function api<T = unknown>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  // if (token) headers["Authorization"] = `Bearer ${token}`;
   const storedToken = localStorage.getItem("spiveql_token");
   const finalToken = token || storedToken;
 
@@ -44,9 +41,15 @@ export async function api<T = unknown>(
 // ============================================
 export const authApi = {
   register: (name: string, email: string, password: string) =>
-    api<{ token: string; user: AuthUser }>("/register.php", {
+    api<{ message: string; user_id: number; requires_verification: boolean }>("/register.php", {
       method: "POST",
       body: { name, email, password },
+    }),
+
+  verifyOtp: (userId: number, otp: string) =>
+    api<{ token: string; user: AuthUser }>("/verify-otp.php", {
+      method: "POST",
+      body: { user_id: userId, otp },
     }),
 
   login: (email: string, password: string) =>
@@ -66,8 +69,11 @@ export const userApi = {
       { token }
     ),
 
-  getProjects: (token: string) =>
-    api<{ projects: ProjectWithAccess[] }>("/projects.php", { token }),
+  getProjects: (token: string, page = 1, limit = 10) =>
+    api<{ projects: ProjectWithAccess[]; pagination: Pagination }>(
+      `/projects.php?page=${page}&limit=${limit}`,
+      { token }
+    ),
 
   getTasks: (token: string, projectId: number) =>
     api<{ tasks: Task[] }>(`/tasks.php?project_id=${projectId}`, { token }),
@@ -81,11 +87,29 @@ export const userApi = {
 };
 
 // ============================================
+// Public
+// ============================================
+export const publicApi = {
+  getProjects: (page = 1, limit = 4) =>
+    api<{ projects: PublicProject[]; pagination: Pagination }>(
+      `/projects.php?public=1&page=${page}&limit=${limit}`
+    ),
+
+  getTestimonials: (page = 1, limit = 10) =>
+    api<{ testimonials: Testimonial[]; pagination: Pagination }>(
+      `/testimonials.php?page=${page}&limit=${limit}`
+    ),
+};
+
+// ============================================
 // Admin
 // ============================================
 export const adminApi = {
-  getUsers: (token: string) =>
-    api<{ users: AdminUser[] }>("/admin/users.php", { token }),
+  getUsers: (token: string, page = 1, limit = 25, search = "") =>
+    api<{ users: AdminUser[]; pagination: Pagination }>(
+      `/admin/users.php?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+      { token }
+    ),
 
   updateUser: (token: string, userId: number, action: string, extra?: Record<string, unknown>) =>
     api("/admin/update-user.php", {
@@ -93,6 +117,42 @@ export const adminApi = {
       token,
       body: { user_id: userId, action, ...extra },
     }),
+
+  getProjects: (token: string) =>
+    api<{ projects: AdminProject[] }>("/admin/projects.php", { token }),
+
+  createProject: (token: string, data: Record<string, unknown>) =>
+    api("/admin/projects.php", { method: "POST", token, body: data }),
+
+  updateProject: (token: string, data: Record<string, unknown>) =>
+    api("/admin/projects.php", { method: "PUT", token, body: data }),
+
+  deleteProject: (token: string, projectId: number) =>
+    api("/admin/projects.php", { method: "DELETE", token, body: { project_id: projectId } }),
+
+  getTasks: (token: string, projectId: number) =>
+    api<{ tasks: AdminTask[] }>(`/admin/tasks.php?project_id=${projectId}`, { token }),
+
+  createTask: (token: string, data: Record<string, unknown>) =>
+    api("/admin/tasks.php", { method: "POST", token, body: data }),
+
+  updateTask: (token: string, data: Record<string, unknown>) =>
+    api("/admin/tasks.php", { method: "PUT", token, body: data }),
+
+  deleteTask: (token: string, taskId: number) =>
+    api("/admin/tasks.php", { method: "DELETE", token, body: { task_id: taskId } }),
+
+  getTestimonials: (token: string) =>
+    api<{ testimonials: AdminTestimonial[] }>("/admin/testimonials.php", { token }),
+
+  createTestimonial: (token: string, data: Record<string, unknown>) =>
+    api("/admin/testimonials.php", { method: "POST", token, body: data }),
+
+  updateTestimonial: (token: string, data: Record<string, unknown>) =>
+    api("/admin/testimonials.php", { method: "PUT", token, body: data }),
+
+  deleteTestimonial: (token: string, id: number) =>
+    api("/admin/testimonials.php", { method: "DELETE", token, body: { id } }),
 };
 
 // ============================================
@@ -119,6 +179,7 @@ export interface UserProject {
   difficulty: string;
   duration: string;
   tags: string[];
+  status: string;
   granted_at: string;
 }
 
@@ -130,10 +191,22 @@ export interface ProjectWithAccess {
   difficulty: string;
   duration: string;
   tags: string[];
+  status: string;
   has_access: boolean;
   is_active: boolean;
   total_tasks: number;
   completed_tasks: number;
+}
+
+export interface PublicProject {
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  duration: string;
+  tags: string[];
+  status: string;
 }
 
 export interface Task {
@@ -142,6 +215,8 @@ export interface Task {
   title: string;
   description: string;
   sort_order: number;
+  project_title: string;
+  user_name: string;
   user_status: "PENDING" | "COMPLETED";
   completed_at: string | null;
 }
@@ -158,7 +233,55 @@ export interface AdminUser {
   projects: string | null;
 }
 
+export interface AdminProject {
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  duration: string;
+  tags: string[];
+  status: string;
+  is_active: boolean;
+  total_tasks: number;
+  enrolled_users: number;
+}
+
+export interface AdminTask {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string;
+  sort_order: number;
+  project_title: string;
+  assigned_user_name: string | null;
+  completed_by_count: number;
+}
+
+export interface AdminTestimonial {
+  id: number;
+  user_name: string;
+  role_title: string;
+  quote: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface Testimonial {
+  id: number;
+  name: string;
+  role: string;
+  quote: string;
+}
+
 export interface ProgressStats {
   total_tasks: number;
   completed_tasks: number;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  has_more: boolean;
 }
