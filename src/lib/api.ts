@@ -1,5 +1,5 @@
 // ============================================
-// Spiveql API Client v2
+// Spiveql API Client v3
 // ============================================
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -133,6 +133,9 @@ export const adminApi = {
   getTasks: (token: string, projectId: number) =>
     api<{ tasks: AdminTask[] }>(`/admin/tasks.php?project_id=${projectId}`, { token }),
 
+  getAllTasks: (token: string) =>
+    api<{ tasks: AdminTask[] }>("/admin/tasks.php?all=1", { token }),
+
   createTask: (token: string, data: Record<string, unknown>) =>
     api("/admin/tasks.php", { method: "POST", token, body: data }),
 
@@ -153,6 +156,34 @@ export const adminApi = {
 
   deleteTestimonial: (token: string, id: number) =>
     api("/admin/testimonials.php", { method: "DELETE", token, body: { id } }),
+
+  // User-specific project & task endpoints
+  getUserProjects: (token: string, userId: number) =>
+    api<{ projects: UserProjectDetail[] }>(`/admin/user-projects.php?user_id=${userId}`, { token }),
+
+  getUserTasks: (token: string, userId: number) =>
+    api<{ tasks: UserTaskDetail[] }>(`/admin/user-tasks.php?user_id=${userId}`, { token }),
+
+  assignTask: (token: string, userId: number, taskId: number) =>
+    api("/admin/user-tasks.php", {
+      method: "POST",
+      token,
+      body: { user_id: userId, task_id: taskId },
+    }),
+
+  markTaskComplete: (token: string, userId: number, taskId: number) =>
+    api("/admin/user-tasks.php", {
+      method: "PUT",
+      token,
+      body: { user_id: userId, task_id: taskId, status: "COMPLETED" },
+    }),
+
+  revokeProject: (token: string, userId: number, projectId: number) =>
+    api("/admin/update-user.php", {
+      method: "PUT",
+      token,
+      body: { user_id: userId, action: "revoke_project", project_id: projectId },
+    }),
 };
 
 // ============================================
@@ -231,6 +262,7 @@ export interface AdminUser {
   last_login: string | null;
   created_at: string;
   projects: string | null;
+  project_ids?: number[];
 }
 
 export interface AdminProject {
@@ -284,4 +316,27 @@ export interface Pagination {
   limit: number;
   total: number;
   has_more: boolean;
+}
+
+// New types for admin user detail views
+export interface UserProjectDetail {
+  id: number;
+  slug: string;
+  title: string;
+  status: string;
+  granted_at: string;
+  total_tasks: number;
+  completed_tasks: number;
+}
+
+export interface UserTaskDetail {
+  id: number;
+  task_id: number;
+  title: string;
+  description: string;
+  project_id: number;
+  project_title: string;
+  status: "PENDING" | "COMPLETED";
+  assigned_at: string;
+  completed_at: string | null;
 }
