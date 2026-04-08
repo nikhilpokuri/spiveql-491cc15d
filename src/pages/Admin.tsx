@@ -10,29 +10,63 @@ import { useAuth } from "@/contexts/AuthContext";
 import { adminApi, type AdminUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const Admin = () => {
   const { token, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [projects, setProjects] = useState<any[]>([]); // ✅ NEW
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token || !isAdmin) { navigate("/login"); return; }
-    loadUsers();
-  }, [token, isAdmin, navigate]);
-
+  // ✅ Load Users
   const loadUsers = useCallback(() => {
     if (!token) return;
-    adminApi.getUsers(token).then((res) => setUsers(res.users)).finally(() => setLoading(false));
+    adminApi.getUsers(token)
+      .then((res) => setUsers(res.users))
+      .finally(() => setLoading(false));
   }, [token]);
 
-  const handleAction = async (userId: number, action: string, extra?: Record<string, unknown>) => {
+  // ✅ Load Projects (NEW)
+  const loadProjects = useCallback(() => {
     if (!token) return;
-    const key = `${userId}-${action}`;
+
+    fetch(`${API_URL}/admin/projects.php`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setProjects(data.projects || data);
+      })
+      .catch((err) => console.error("Failed to load projects", err));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !isAdmin) {
+      navigate("/login");
+      return;
+    }
+
+    loadUsers();
+    loadProjects(); // ✅ NEW
+  }, [token, isAdmin, navigate, loadUsers, loadProjects]);
+
+  const handleAction = async (
+    userId: number,
+    action: string,
+    extra?: Record<string, unknown>
+  ) => {
+    if (!token) return;
+
+    const key = `${userId}-${action}-${extra?.project_id || ""}`;
     setActionLoading(key);
+
     try {
       await adminApi.updateUser(token, userId, action, extra);
       toast({ title: "Success", description: `Action "${action}" completed.` });
@@ -44,7 +78,8 @@ const Admin = () => {
     }
   };
 
-  const isLoading = (userId: number, action: string) => actionLoading === `${userId}-${action}`;
+  const isLoading = (userId: number, action: string, projectId?: number) =>
+    actionLoading === `${userId}-${action}-${projectId || ""}`;
 
   if (loading) {
     return (
@@ -60,10 +95,14 @@ const Admin = () => {
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
             <Link to="/" className="text-lg font-bold text-gradient">Spiveql</Link>
-            <Badge variant="secondary" className="text-xs"><Shield size={10} /> Admin</Badge>
+            <Badge variant="secondary" className="text-xs">
+              <Shield size={10} /> Admin
+            </Badge>
           </div>
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/dashboard"><ArrowLeft size={14} /> Dashboard</Link>
+            <Link to="/dashboard">
+              <ArrowLeft size={14} /> Dashboard
+            </Link>
           </Button>
         </div>
       </header>
@@ -73,11 +112,12 @@ const Admin = () => {
           <Users size={28} className="text-primary" />
           <div>
             <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
-            <p className="text-muted-foreground text-sm">{users.length} registered users</p>
+            <p className="text-muted-foreground text-sm">
+              {users.length} registered users
+            </p>
           </div>
         </div>
 
-        {/* Users table */}
         <div className="glass rounded-xl overflow-hidden">
           {/* Header */}
           <div className="hidden md:grid grid-cols-[2fr_2fr_1fr_1fr_1fr_1fr_auto] gap-4 p-4 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -92,100 +132,155 @@ const Admin = () => {
 
           {users.map((u) => (
             <div key={u.id} className="border-b border-border last:border-b-0">
-              {/* Row */}
               <div
                 className="grid grid-cols-1 md:grid-cols-[2fr_2fr_1fr_1fr_1fr_1fr_auto] gap-2 md:gap-4 p-4 items-center cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setExpandedUser(expandedUser === u.id ? null : u.id)}
+                onClick={() =>
+                  setExpandedUser(expandedUser === u.id ? null : u.id)
+                }
               >
                 <span className="font-medium text-foreground">{u.name}</span>
-                <span className="text-sm text-muted-foreground truncate">{u.email}</span>
-                <Badge variant={u.role === "ADMIN" ? "default" : "secondary"} className="w-fit text-xs">
+                <span className="text-sm text-muted-foreground truncate">
+                  {u.email}
+                </span>
+                <Badge
+                  variant={u.role === "ADMIN" ? "default" : "secondary"}
+                  className="w-fit text-xs"
+                >
                   {u.role}
                 </Badge>
-                <span className={`text-xs font-medium ${u.subscription_status === "ACTIVE" ? "text-green-400" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-xs font-medium ${
+                    u.subscription_status === "ACTIVE"
+                      ? "text-green-400"
+                      : "text-muted-foreground"
+                  }`}
+                >
                   {u.subscription_status}
                 </span>
-                <span className={`text-xs ${u.lab_access ? "text-primary" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-xs ${
+                    u.lab_access ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
                   {u.lab_access ? "Yes" : "No"}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {new Date(u.created_at).toLocaleDateString()}
                 </span>
                 <span className="text-muted-foreground">
-                  {expandedUser === u.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  {expandedUser === u.id ? (
+                    <ChevronUp size={16} />
+                  ) : (
+                    <ChevronDown size={16} />
+                  )}
                 </span>
               </div>
 
-              {/* Expanded actions */}
+              {/* Expanded */}
               {expandedUser === u.id && (
                 <div className="px-4 pb-4 space-y-3 bg-muted/10">
                   <div className="text-xs text-muted-foreground">
-                    Last login: {u.last_login ? new Date(u.last_login).toLocaleString() : "Never"} •
-                    Projects: {u.projects || "None"}
+                    Last login:{" "}
+                    {u.last_login
+                      ? new Date(u.last_login).toLocaleString()
+                      : "Never"}{" "}
+                    • Projects: {u.projects || "None"}
                   </div>
+
                   <div className="flex flex-wrap gap-2">
-                    {/* Subscription toggle */}
+                    {/* Subscription */}
                     {u.subscription_status === "ACTIVE" ? (
                       <Button
-                        size="sm" variant="outline"
+                        size="sm"
+                        variant="outline"
                         disabled={isLoading(u.id, "deactivate_subscription")}
-                        onClick={(e) => { e.stopPropagation(); handleAction(u.id, "deactivate_subscription"); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAction(u.id, "deactivate_subscription");
+                        }}
                       >
                         <XCircle size={14} /> Deactivate Sub
                       </Button>
                     ) : (
                       <Button
-                        size="sm" variant="hero"
+                        size="sm"
+                        variant="hero"
                         disabled={isLoading(u.id, "activate_subscription")}
-                        onClick={(e) => { e.stopPropagation(); handleAction(u.id, "activate_subscription"); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAction(u.id, "activate_subscription");
+                        }}
                       >
                         <CheckCircle size={14} /> Activate Sub
                       </Button>
                     )}
 
-                    {/* Lab toggle */}
+                    {/* Lab */}
                     <Button
-                      size="sm" variant="outline"
-                      disabled={isLoading(u.id, u.lab_access ? "revoke_lab" : "grant_lab")}
+                      size="sm"
+                      variant="outline"
+                      disabled={isLoading(
+                        u.id,
+                        u.lab_access ? "revoke_lab" : "grant_lab"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleAction(u.id, u.lab_access ? "revoke_lab" : "grant_lab");
+                        handleAction(
+                          u.id,
+                          u.lab_access ? "revoke_lab" : "grant_lab"
+                        );
                       }}
                     >
-                      <FlaskConical size={14} /> {u.lab_access ? "Revoke Lab" : "Grant Lab"}
+                      <FlaskConical size={14} />{" "}
+                      {u.lab_access ? "Revoke Lab" : "Grant Lab"}
                     </Button>
 
-                    {/* Role toggle */}
+                    {/* Role */}
                     <Button
-                      size="sm" variant="outline"
+                      size="sm"
+                      variant="outline"
                       disabled={isLoading(u.id, "change_role")}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleAction(u.id, "change_role", { role: u.role === "ADMIN" ? "USER" : "ADMIN" });
+                        handleAction(u.id, "change_role", {
+                          role: u.role === "ADMIN" ? "USER" : "ADMIN",
+                        });
                       }}
                     >
-                      <Shield size={14} /> Make {u.role === "ADMIN" ? "User" : "Admin"}
+                      <Shield size={14} /> Make{" "}
+                      {u.role === "ADMIN" ? "User" : "Admin"}
                     </Button>
 
-                    {/* Grant BBS project */}
-                    <Button
-                      size="sm" variant="outline"
-                      disabled={isLoading(u.id, "grant_project")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAction(u.id, "grant_project", { project_id: 1 });
-                      }}
-                    >
-                      Grant BBS Project
-                    </Button>
+                    {/* ✅ Dynamic Project Buttons */}
+                    {projects.map((p) => (
+                      <Button
+                        key={p.id}
+                        size="sm"
+                        variant="outline"
+                        disabled={isLoading(u.id, "grant_project", p.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAction(u.id, "grant_project", {
+                            project_id: p.id,
+                          });
+                        }}
+                      >
+                        Grant {p.slug}
+                      </Button>
+                    ))}
 
                     {/* Delete */}
                     <Button
-                      size="sm" variant="destructive"
+                      size="sm"
+                      variant="destructive"
                       disabled={isLoading(u.id, "delete")}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Delete user "${u.name}"? This cannot be undone.`)) {
+                        if (
+                          confirm(
+                            `Delete user "${u.name}"? This cannot be undone.`
+                          )
+                        ) {
                           handleAction(u.id, "delete");
                         }
                       }}
